@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="ca">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MSL Mapa</title>
+<link rel="stylesheet" href="leaflet/leaflet.css"/>
+<script src="leaflet/leaflet.js"></script>
+<script src="qrc:///qtwebchannel/qwebchannel.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; }
+  #map { width: 100%; height: 100%; }
+
+  .msl-pin {
+    width: 28px;
+    height: 36px;
+    position: relative;
+  }
+  .msl-pin svg { width: 100%; height: 100%; }
+
+  .msl-tooltip {
+    background: white;
+    border: 1px solid #e2e8f0;
+    border-radius: 6px;
+    padding: 6px 10px;
+    font-family: system-ui, sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    color: #1e293b;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+    white-space: nowrap;
+  }
+</style>
+</head>
+<body>
+<div id="map"></div>
+<script>
+  // ── QWebChannel setup ─────────────────────────────────────────────────
+  var pyBridge = null;
+
+  function sendToPython(obj) {
+    if (pyBridge) {
+      pyBridge.on_js_message(JSON.stringify(obj));
+    }
+  }
+
+  // ── Leaflet map ────────────────────────────────────────────────────────
+  var map = L.map('map', { zoomControl: true }).setView([40.2, -4.2], 6);
+
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors © <a href="https://carto.com/attributions">CARTO</a>',
+    subdomains: 'abcd',
+    maxZoom: 19
+  }).addTo(map);
+
+  var markers = {};   // hospital_id → L.marker
+
+  // ── Pin SVG per a cada color ───────────────────────────────────────────
+  function makePinIcon(color) {
+    var svg = '<svg viewBox="0 0 28 36" xmlns="http://www.w3.org/2000/svg">'
+      + '<path d="M14 0C6.27 0 0 6.27 0 14c0 9.6 14 22 14 22s14-12.4 14-22C28 6.27 21.73 0 14 0z" fill="' + color + '"/>'
+      + '<circle cx="14" cy="14" r="6" fill="white" opacity="0.9"/>'
+      + '</svg>';
+    return L.divIcon({
+      html: '<div class="msl-pin">' + svg + '</div>',
+      iconSize: [28, 36],
+      iconAnchor: [14, 36],
+      tooltipAnchor: [0, -36],
+      className: ''
+    });
+  }
+
+  // ── Carregar / actualitzar tots els pins ───────────────────────────────
+  function setHospitals(hospitals) {
+    // Eliminar pins anteriors
+    Object.values(markers).forEach(function(m) { map.removeLayer(m); });
+    markers = {};
+    hospitals.forEach(function(h) {
+      var icon = makePinIcon(h.color || '#3b82f6');
+      var m = L.marker([h.lat, h.lng], { icon: icon }).addTo(map);
+      m.bindTooltip('<div class="msl-tooltip">' + h.nom + '</div>', {
+        permanent: false, direction: 'top', offset: [0, -36]
+      });
+      m.on('click', function(e) {
+        L.DomEvent.stopPropagation(e);
+        sendToPython({ type: 'pin_click', hospital_id: h.id });
+      });
+      markers[h.id] = m;
+    });
+  }
+
+  // ── Centrar i fer zoom en un hospital ──────────────────────────────────
+  function panToHospital(hospital_id, zoom) {
+    var m = markers[hospital_id];
+    if (m) {
+      map.setView(m.getLatLng(), zoom || 12, { animate: true });
+    }
+  }
+
+  // ── Destacar temporalment un pin ───────────────────────────────────────
+  function highlightHospital(hospital_id) {
+    panToHospital(hospital_id, 13);
+    var m = markers[hospital_id];
+    if (m) { m.openTooltip(); }
+  }
+
+  // ── Clic al mapa buit → afegir hospital ───────────────────────────────
+  map.on('click', function(e) {
+    sendToPython({ type: 'map_click', lat: e.latlng.lat, lng: e.latlng.lng });
+  });
+
+  // ── Inicialitzar el pont QWebChannel ──────────────────────────────────
+  if (typeof QWebChannel !== 'undefined' && typeof qt !== 'undefined') {
+    new QWebChannel(qt.webChannelTransport, function(channel) {
+      pyBridge = channel.objects.bridge;
+    });
+  }
+</script>
+</body>
+</html>

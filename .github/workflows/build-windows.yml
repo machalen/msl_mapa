@@ -1,0 +1,52 @@
+name: Build Windows
+
+on:
+  # Execució manual des de la interfície de GitHub
+  workflow_dispatch:
+  # Execució automàtica quan es crea un tag de versió (ex: v1.0.0)
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    runs-on: windows-latest
+
+    steps:
+      - name: Obtenir el codi
+        uses: actions/checkout@v4
+
+      - name: Configurar Python 3.10
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+          cache: 'pip'
+
+      - name: Instal·lar dependències
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          pip install pyinstaller
+
+      - name: Construir executable
+        run: pyinstaller msl_mapa.spec
+
+      - name: Comprimir el resultat
+        run: |
+          cd dist
+          Compress-Archive -Path MSLMapa -DestinationPath MSLMapa-Windows.zip
+
+      - name: Pujar com a artefacte (disponible 30 dies)
+        uses: actions/upload-artifact@v4
+        with:
+          name: MSLMapa-Windows
+          path: dist/MSLMapa-Windows.zip
+          retention-days: 30
+
+      # Només si el trigger és un tag v* → crea una Release de GitHub
+      - name: Crear Release de GitHub
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: dist/MSLMapa-Windows.zip
+          generate_release_notes: true

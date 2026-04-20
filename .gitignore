@@ -1,0 +1,31 @@
+# Base de dades — conté dades reals, NO pujar mai
+*.db
+*.db-shm
+*.db-wal
+
+# Dades originals de disseny — conté informació de pacients/hospitals
+../design/*.json
+
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+
+# Entorns virtuals
+.venv/
+venv/
+env/
+
+# PyInstaller
+build/
+dist/
+*.spec.bak
+
+# macOS
+.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.sublime-project
