@@ -5,6 +5,7 @@ from PyQt6.QtWidgets import QWidget, QVBoxLayout, QLabel
 class AboutTab(QWidget):
     def __init__(self):
         super().__init__()
+        self.setStyleSheet("background-color: white;")
         layout = QVBoxLayout(self)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
 

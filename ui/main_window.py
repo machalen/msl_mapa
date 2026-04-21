@@ -5,7 +5,7 @@ from PyQt6.QtCore import Qt
 
 from database.db import DatabaseManager
 from ui.map_widget import MapWidget
-from ui.hospital_dialog import HospitalDialog
+from ui.hospital_dialog import HospitalDialog, AddHospitalSearchDialog
 from ui.tab_hospitals import HospitalsTab
 from ui.tab_doctors import DoctorsTab
 from ui.tab_projectes import ProjectesTab
@@ -24,6 +24,35 @@ class MainWindow(QMainWindow):
     def _setup_ui(self):
         self._tabs = QTabWidget()
         self._tabs.setDocumentMode(True)
+        self._tabs.setStyleSheet("""
+            QTabWidget::pane {
+                background-color: #fcfcfc;
+                border: 1px solid #a6d1de;
+            }
+            QTabBar {
+                background-color: #fcfcfc;
+            }
+            QTabBar::tab {
+                background-color: #e1f2f7;
+                color: #3a3830;
+                padding: 11px 28px;
+                font-size: 14px;
+                min-width: 90px;
+                border: 1px solid #a6d1de;
+                border-bottom: none;
+                margin-right: 2px;
+                border-top-left-radius: 5px;
+                border-top-right-radius: 5px;
+            }
+            QTabBar::tab:selected {
+                background-color: #fcfcfc;
+                font-weight: bold;
+                color: #1a1917;
+            }
+            QTabBar::tab:hover:!selected {
+                background-color: #f5f0de;
+            }
+        """)
 
         # Pestanya 0: Mapa
         self._map_widget = MapWidget(self.db)
@@ -42,6 +71,11 @@ class MainWindow(QMainWindow):
         self._tab_about = AboutTab()
         self._tabs.addTab(self._tab_about, "Quant a")
 
+        # Fons #fcfcfc per a les pestanyes de llista
+        for widget in (self._tab_hospitals, self._tab_doctors, self._tab_projectes):
+            widget.setStyleSheet("background-color: #fcfcfc;")
+        self._tab_about.setStyleSheet("background-color: white;")
+
         self.setCentralWidget(self._tabs)
 
         self._status = QStatusBar()
@@ -56,6 +90,7 @@ class MainWindow(QMainWindow):
     def _connect_signals(self):
         self._map_widget.hospital_clicked.connect(self._on_hospital_selected)
         self._map_widget.map_clicked_empty.connect(self._on_map_clicked_empty)
+        self._map_widget.add_hospital_requested.connect(self._on_add_hospital_requested)
         self._tab_hospitals.hospital_selected.connect(self._on_hospital_tab_selected)
 
     # ── Interaccions del mapa ──────────────────────────────────────────────
@@ -67,6 +102,11 @@ class MainWindow(QMainWindow):
         dlg = HospitalDialog(self.db, hospital, parent=self)
         result = dlg.exec()
         self.refresh_all()
+
+    def _on_add_hospital_requested(self):
+        dlg = AddHospitalSearchDialog(self.db, parent=self)
+        if dlg.exec() == 1:
+            self.refresh_all()
 
     def _on_map_clicked_empty(self, lat: float, lng: float):
         dlg = HospitalDialog(self.db, None, lat=lat, lng=lng, parent=self)

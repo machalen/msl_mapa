@@ -4,10 +4,10 @@ from typing import Optional
 from PyQt6.QtCore import Qt
 from PyQt6.QtGui import QColor
 from PyQt6.QtWidgets import (
-    QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
+    QApplication, QDialog, QVBoxLayout, QHBoxLayout, QFormLayout, QGroupBox,
     QLineEdit, QComboBox, QTextEdit, QPushButton, QLabel,
     QTableWidget, QTableWidgetItem, QHeaderView, QColorDialog,
-    QMessageBox, QDialogButtonBox, QWidget, QSizePolicy,
+    QListWidget, QMessageBox, QDialogButtonBox, QWidget, QSizePolicy,
 )
 
 from database.db import DatabaseManager
@@ -27,6 +27,7 @@ class DoctorDialog(QDialog):
         self.hospital_id = hospital_id
         self.setWindowTitle("Doctor" if doctor else "Nou doctor")
         self.setMinimumWidth(420)
+        self.setStyleSheet("background-color: #fcfcfc;")
         self._setup_ui()
 
     def _setup_ui(self):
@@ -161,6 +162,7 @@ class ProjecteDialog(QDialog):
         self.projecte = projecte or Projecte(nom="", hospital_id=hospital_id)
         self.setWindowTitle("Projecte" if projecte else "Nou projecte")
         self.setMinimumWidth(380)
+        self.setStyleSheet("background-color: #fcfcfc;")
         self._setup_ui()
 
     def _setup_ui(self):
@@ -205,14 +207,15 @@ class ProjecteDialog(QDialog):
 
 class HospitalDialog(QDialog):
     def __init__(self, db: DatabaseManager, hospital: Optional[Hospital],
-                 lat: float = 40.2, lng: float = -4.2, parent=None):
+                 lat: float = 40.2, lng: float = -4.2, nom: str = "", parent=None):
         super().__init__(parent)
         self.db = db
-        self.hospital = hospital or Hospital(nom="", lat=lat, lng=lng)
+        self.hospital = hospital or Hospital(nom=nom, lat=lat, lng=lng)
         self._is_new = (hospital is None)
         self.setWindowTitle("Nou hospital" if self._is_new else f"Hospital: {self.hospital.nom}")
         self.setMinimumWidth(560)
         self.setMinimumHeight(600)
+        self.setStyleSheet("background-color: #fcfcfc;")
         self._setup_ui()
 
     def _setup_ui(self):
@@ -465,3 +468,112 @@ class HospitalDialog(QDialog):
         if resp == QMessageBox.StandardButton.Yes:
             self.db.delete_projecte(proj_id)
             self._refresh_projectes()
+
+
+# ─── Diàleg de cerca per afegir un hospital ───────────────────────────────────
+
+class AddHospitalSearchDialog(QDialog):
+    def __init__(self, db: DatabaseManager, parent=None):
+        super().__init__(parent)
+        self.db = db
+        self._results: list[dict] = []
+        self.setWindowTitle("Afegir hospital")
+        self.setMinimumWidth(540)
+        self.setStyleSheet("background-color: #fcfcfc;")
+        self._setup_ui()
+
+    def _setup_ui(self):
+        layout = QVBoxLayout(self)
+        layout.setSpacing(10)
+
+        lbl = QLabel("Cerca l'hospital per nom o adreça:")
+        lbl.setStyleSheet("font-weight: bold; font-size: 13px;")
+        layout.addWidget(lbl)
+
+        search_row = QHBoxLayout()
+        self._search_input = QLineEdit()
+        self._search_input.setPlaceholderText("ex: Hospital Vall d'Hebron, Barcelona…")
+        self._search_input.setStyleSheet("background-color: white;")
+        self._search_input.returnPressed.connect(self._do_search)
+        search_row.addWidget(self._search_input)
+        btn_search = QPushButton("Cercar")
+        btn_search.setFixedWidth(80)
+        btn_search.setStyleSheet(
+            "background: #2563d4; color: white; border-radius:4px; padding: 6px 12px; font-weight: bold;"
+        )
+        btn_search.clicked.connect(self._do_search)
+        search_row.addWidget(btn_search)
+        layout.addLayout(search_row)
+
+        self._status_lbl = QLabel("")
+        self._status_lbl.setStyleSheet("color: #64748b; font-size: 12px;")
+        layout.addWidget(self._status_lbl)
+
+        self._list = QListWidget()
+        self._list.setMinimumHeight(200)
+        self._list.setStyleSheet(
+            "background-color: white; border: 1px solid #ddd9c4; border-radius: 4px;"
+        )
+        self._list.currentRowChanged.connect(self._on_row_changed)
+        self._list.doubleClicked.connect(self._open_hospital_dialog)
+        layout.addWidget(self._list)
+
+        hint = QLabel("Doble clic o 'Afegir' per obrir el formulari amb les coordenades pre-omplertes.")
+        hint.setStyleSheet("color: #94a3b8; font-size: 11px;")
+        hint.setWordWrap(True)
+        layout.addWidget(hint)
+
+        btn_row = QHBoxLayout()
+        btn_row.addStretch()
+        btn_cancel = QPushButton("Cancel·lar")
+        btn_cancel.clicked.connect(self.reject)
+        btn_row.addWidget(btn_cancel)
+        self._btn_add = QPushButton("＋  Afegir hospital seleccionat")
+        self._btn_add.setEnabled(False)
+        self._btn_add.setStyleSheet(
+            "background: #2563d4; color: white; border-radius:4px; padding: 6px 16px; font-weight: bold;"
+        )
+        self._btn_add.clicked.connect(self._open_hospital_dialog)
+        btn_row.addWidget(self._btn_add)
+        layout.addLayout(btn_row)
+
+    def _on_row_changed(self, row: int):
+        self._btn_add.setEnabled(row >= 0)
+
+    def _do_search(self):
+        query = self._search_input.text().strip()
+        if not query:
+            return
+        self._status_lbl.setText("Cercant…")
+        self._list.clear()
+        self._results = []
+        self._btn_add.setEnabled(False)
+        QApplication.processEvents()
+
+        try:
+            from utils.geocoder import search as geocode_search
+            results = geocode_search(query, limit=8)
+            self._results = results
+            if results:
+                self._status_lbl.setText(f"{len(results)} resultats trobats:")
+                for r in results:
+                    self._list.addItem(r["display_name"])
+            else:
+                self._status_lbl.setText("No s'han trobat resultats. Prova amb una altra cerca.")
+        except Exception as e:
+            self._status_lbl.setText(f"Error de connexió: {e}")
+
+    def _open_hospital_dialog(self):
+        row = self._list.currentRow()
+        if row < 0 or row >= len(self._results):
+            return
+        result = self._results[row]
+        short_name = result["display_name"].split(",")[0].strip()
+        dlg = HospitalDialog(
+            self.db, None,
+            lat=result["lat"], lng=result["lng"],
+            nom=short_name,
+            parent=self,
+        )
+        if dlg.exec() == QDialog.DialogCode.Accepted:
+            self.accept()

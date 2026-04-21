@@ -18,6 +18,7 @@ class _Bridge(QObject):
 
     hospital_clicked = pyqtSignal(int)
     map_clicked_empty = pyqtSignal(float, float)
+    add_hospital_requested = pyqtSignal()
 
     @pyqtSlot(str)
     def on_js_message(self, message: str):
@@ -27,6 +28,8 @@ class _Bridge(QObject):
                 self.hospital_clicked.emit(int(data["hospital_id"]))
             elif data.get("type") == "map_click":
                 self.map_clicked_empty.emit(float(data["lat"]), float(data["lng"]))
+            elif data.get("type") == "add_hospital_click":
+                self.add_hospital_requested.emit()
         except (KeyError, ValueError, json.JSONDecodeError):
             pass
 
@@ -34,6 +37,7 @@ class _Bridge(QObject):
 class MapWidget(QWidget):
     hospital_clicked = pyqtSignal(int)
     map_clicked_empty = pyqtSignal(float, float)
+    add_hospital_requested = pyqtSignal()
 
     def __init__(self, db: DatabaseManager):
         super().__init__()
@@ -55,6 +59,7 @@ class MapWidget(QWidget):
         # Reencaminar senyals del bridge cap a l'exterior
         self._bridge.hospital_clicked.connect(self.hospital_clicked)
         self._bridge.map_clicked_empty.connect(self.map_clicked_empty)
+        self._bridge.add_hospital_requested.connect(self.add_hospital_requested)
 
         layout = QVBoxLayout(self)
         layout.setContentsMargins(0, 0, 0, 0)
