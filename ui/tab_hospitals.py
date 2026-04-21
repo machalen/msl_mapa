@@ -33,9 +33,10 @@ class HospitalsTab(QWidget):
         layout.addLayout(top)
 
         self._table = QTableWidget()
-        self._table.setColumnCount(5)
-        self._table.setHorizontalHeaderLabels(["Nom", "Status", "Contacte", "Lat", "Lng"])
+        self._table.setColumnCount(4)
+        self._table.setHorizontalHeaderLabels(["Nom", "Status", "Ciutat", "Comunitat autònoma"])
         self._table.horizontalHeader().setSectionResizeMode(0, QHeaderView.ResizeMode.Stretch)
+        self._table.horizontalHeader().setSectionResizeMode(3, QHeaderView.ResizeMode.Stretch)
         self._table.setSelectionBehavior(QTableWidget.SelectionBehavior.SelectRows)
         self._table.setEditTriggers(QTableWidget.EditTrigger.NoEditTriggers)
         self._table.doubleClicked.connect(self._on_double_click)
@@ -50,10 +51,9 @@ class HospitalsTab(QWidget):
         for row, d in enumerate(self._data):
             self._table.setItem(row, 0, QTableWidgetItem(d["nom"]))
             self._table.setItem(row, 1, QTableWidgetItem(d["status"]))
-            self._table.setItem(row, 2, QTableWidgetItem(d.get("contacte", "")))
-            self._table.setItem(row, 3, QTableWidgetItem(str(round(d["lat"], 4))))
-            self._table.setItem(row, 4, QTableWidgetItem(str(round(d["lng"], 4))))
-            for col in range(5):
+            self._table.setItem(row, 2, QTableWidgetItem(d.get("ciutat", "")))
+            self._table.setItem(row, 3, QTableWidgetItem(d.get("comunitat", "")))
+            for col in range(4):
                 item = self._table.item(row, col)
                 if item:
                     item.setData(Qt.ItemDataRole.UserRole, d["id"])

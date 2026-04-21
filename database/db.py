@@ -22,6 +22,15 @@ class DatabaseManager:
         sql = _SCHEMA.read_text(encoding="utf-8")
         self._conn.executescript(sql)
         self._conn.commit()
+        # Migració: afegir columnes noves a BD existents
+        for col in ("ciutat", "comunitat"):
+            try:
+                self._conn.execute(
+                    f"ALTER TABLE hospitals ADD COLUMN {col} TEXT NOT NULL DEFAULT ''"
+                )
+                self._conn.commit()
+            except sqlite3.OperationalError:
+                pass  # la columna ja existeix
 
     def close(self):
         self._conn.close()
@@ -43,19 +52,23 @@ class DatabaseManager:
     def save_hospital(self, h: Hospital) -> int:
         if h.id == 0:
             cur = self._conn.execute(
-                """INSERT INTO hospitals (nom, status, color, contacte, observacions, lat, lng)
-                   VALUES (?, ?, ?, ?, ?, ?, ?)""",
-                (h.nom, h.status, h.color, h.contacte, h.observacions, h.lat, h.lng),
+                """INSERT INTO hospitals
+                   (nom, status, color, contacte, observacions, ciutat, comunitat, lat, lng)
+                   VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                (h.nom, h.status, h.color, h.contacte, h.observacions,
+                 h.ciutat, h.comunitat, h.lat, h.lng),
             )
             self._conn.commit()
             return cur.lastrowid
         else:
             self._conn.execute(
                 """UPDATE hospitals
-                   SET nom=?, status=?, color=?, contacte=?, observacions=?, lat=?, lng=?,
+                   SET nom=?, status=?, color=?, contacte=?, observacions=?,
+                       ciutat=?, comunitat=?, lat=?, lng=?,
                        actualitzat_el=datetime('now')
                    WHERE id=?""",
-                (h.nom, h.status, h.color, h.contacte, h.observacions, h.lat, h.lng, h.id),
+                (h.nom, h.status, h.color, h.contacte, h.observacions,
+                 h.ciutat, h.comunitat, h.lat, h.lng, h.id),
             )
             self._conn.commit()
             return h.id
@@ -72,6 +85,8 @@ class DatabaseManager:
             color=row["color"],
             contacte=row["contacte"],
             observacions=row["observacions"],
+            ciutat=row["ciutat"] if "ciutat" in row.keys() else "",
+            comunitat=row["comunitat"] if "comunitat" in row.keys() else "",
             lat=row["lat"],
             lng=row["lng"],
         )
@@ -204,15 +219,16 @@ class DatabaseManager:
         q = f"%{query}%"
         rows = self._conn.execute(
             """SELECT DISTINCT h.id, h.nom, h.status, h.color, h.contacte, h.observacions,
-                               h.lat, h.lng
+                               h.ciutat, h.comunitat, h.lat, h.lng
                FROM hospitals h
                LEFT JOIN doctors d  ON d.hospital_id = h.id
                LEFT JOIN projectes p ON p.hospital_id = h.id
                WHERE h.nom        LIKE ? OR h.contacte   LIKE ? OR h.observacions LIKE ?
+                  OR h.ciutat     LIKE ? OR h.comunitat  LIKE ?
                   OR d.nom        LIKE ? OR d.especialitat LIKE ?
                   OR p.nom        LIKE ? OR p.tema        LIKE ?
                ORDER BY h.nom""",
-            (q, q, q, q, q, q, q),
+            (q, q, q, q, q, q, q, q, q),
         ).fetchall()
         return [dict(r) for r in rows]
 

@@ -10,4 +10,6 @@ class Hospital:
     color: str = "#2563d4"
     contacte: str = ""
     observacions: str = ""
+    ciutat: str = ""
+    comunitat: str = ""
     id: int = 0  # 0 = nou (no guardat)

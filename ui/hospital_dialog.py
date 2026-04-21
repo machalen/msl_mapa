@@ -207,10 +207,13 @@ class ProjecteDialog(QDialog):
 
 class HospitalDialog(QDialog):
     def __init__(self, db: DatabaseManager, hospital: Optional[Hospital],
-                 lat: float = 40.2, lng: float = -4.2, nom: str = "", parent=None):
+                 lat: float = 40.2, lng: float = -4.2, nom: str = "",
+                 ciutat: str = "", comunitat: str = "", parent=None):
         super().__init__(parent)
         self.db = db
-        self.hospital = hospital or Hospital(nom=nom, lat=lat, lng=lng)
+        self.hospital = hospital or Hospital(
+            nom=nom, lat=lat, lng=lng, ciutat=ciutat, comunitat=comunitat
+        )
         self._is_new = (hospital is None)
         self.setWindowTitle("Nou hospital" if self._is_new else f"Hospital: {self.hospital.nom}")
         self.setMinimumWidth(560)
@@ -244,6 +247,12 @@ class HospitalDialog(QDialog):
         color_row.addWidget(QLabel("Color del pin al mapa"))
         color_row.addStretch()
         form.addRow("Color", color_row)
+
+        self._ciutat = QLineEdit(self.hospital.ciutat)
+        form.addRow("Ciutat", self._ciutat)
+
+        self._comunitat = QLineEdit(self.hospital.comunitat)
+        form.addRow("Comunitat autònoma", self._comunitat)
 
         self._contacte = QTextEdit(self.hospital.contacte)
         self._contacte.setFixedHeight(60)
@@ -361,6 +370,8 @@ class HospitalDialog(QDialog):
         self.hospital.nom = nom
         self.hospital.status = self._status.currentText()
         self.hospital.color = self._color
+        self.hospital.ciutat = self._ciutat.text().strip()
+        self.hospital.comunitat = self._comunitat.text().strip()
         self.hospital.contacte = self._contacte.toPlainText().strip()
         self.hospital.observacions = self._obs.toPlainText().strip()
         self.hospital.lat = self._lat_val
@@ -573,6 +584,8 @@ class AddHospitalSearchDialog(QDialog):
             self.db, None,
             lat=result["lat"], lng=result["lng"],
             nom=short_name,
+            ciutat=result.get("ciutat", ""),
+            comunitat=result.get("comunitat", ""),
             parent=self,
         )
         if dlg.exec() == QDialog.DialogCode.Accepted:

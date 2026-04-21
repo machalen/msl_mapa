@@ -8,6 +8,8 @@ CREATE TABLE IF NOT EXISTS hospitals (
     color           TEXT    NOT NULL DEFAULT '#2563d4',
     contacte        TEXT    NOT NULL DEFAULT '',
     observacions    TEXT    NOT NULL DEFAULT '',
+    ciutat          TEXT    NOT NULL DEFAULT '',
+    comunitat       TEXT    NOT NULL DEFAULT '',
     lat             REAL    NOT NULL,
     lng             REAL    NOT NULL,
     creat_el        TEXT    NOT NULL DEFAULT (datetime('now')),
